@@ -8,38 +8,44 @@ module Capybara::Cuprite
     extend Forwardable
 
     delegate page: :@targets
+    delegate %i(evaluate function) => :@evaluate
 
-    def initialize(targets)
+    def initialize(targets, evaluate)
       @targets = targets
+      @evaluate = evaluate
     end
 
-    def click(target_id, node, keys = [], offset = {})
-      x, y, modifiers = prepare_before_click(node, keys, offset)
+    def click(id, keys = [], offset = {})
+      x, y, modifiers = prepare_before_click(id, keys, offset)
       page.command("Input.dispatchMouseEvent", type: "mousePressed", modifiers: modifiers, button: "left", x: x, y: y, clickCount: 1)
       page.command("Input.dispatchMouseEvent", type: "mouseReleased", modifiers: modifiers, button: "left", x: x, y: y, clickCount: 1)
       sleep(0.05) # FIXME: we have to wait for network event and then signal to thread
     end
 
-    def right_click(target_id, node, keys = [], offset = {})
-      x, y, modifiers = prepare_before_click(node, keys, offset)
+    def right_click(id, keys = [], offset = {})
+      x, y, modifiers = prepare_before_click(id, keys, offset)
       page.command("Input.dispatchMouseEvent", type: "mousePressed", modifiers: modifiers, button: "right", x: x, y: y, clickCount: 1)
       page.command("Input.dispatchMouseEvent", type: "mouseReleased", modifiers: modifiers, button: "right", x: x, y: y, clickCount: 1)
     end
 
-    def double_click(target_id, node, keys = [], offset = {})
-      x, y, modifiers = prepare_before_click(node, keys, offset)
+    def double_click(id, keys = [], offset = {})
+      x, y, modifiers = prepare_before_click(id, keys, offset)
       page.command("Input.dispatchMouseEvent", type: "mousePressed", modifiers: modifiers, button: "left", x: x, y: y, clickCount: 2)
       page.command("Input.dispatchMouseEvent", type: "mouseReleased", modifiers: modifiers, button: "left", x: x, y: y, clickCount: 2)
     end
 
-    def hover(target_id, node)
-      x, y = calculate_quads(node)
+    def hover(id)
+      x, y = calculate_quads(id)
       page.command("Input.dispatchMouseEvent", type: "mouseMoved", x: x, y: y)
     end
 
-    def set(target_id, node, value)
-      click(target_id, node)
-      page.evaluate(node, "this.value = ''")
+    def click_coordinates(x, y)
+      command "click_coordinates", x, y
+    end
+
+    def set(id, value)
+      click(id)
+      function("_cuprite.getNode(#{id}).clearValue")
       value.each_char do |char|
         page.command("Input.insertText", text: char)
         # page.command("Input.dispatchKeyEvent", type: "keyDown", text: value, unmodifiedText: value)
@@ -77,11 +83,11 @@ module Capybara::Cuprite
 
     private
 
-    def prepare_before_click(node, keys, offset)
-      value = page.evaluate(node, "_cuprite.scrollIntoViewport(this)")
-      raise MouseEventFailed.new(node, nil) unless value
+    def prepare_before_click(id, keys, offset)
+      value = function("_cuprite.getNode(#{id}).scrollIntoViewport")
+      raise MouseEventFailed.new(id, nil) unless value
 
-      x, y = calculate_quads(node, offset[:x], offset[:y])
+      x, y = calculate_quads(id, offset[:x], offset[:y])
 
       click_modifiers = { alt: 1, ctrl: 2, control: 2, meta: 4, command: 4, shift: 8 }
       modifiers = keys.map { |k| click_modifiers[k.to_sym] }.compact.reduce(0, :|)
@@ -91,8 +97,8 @@ module Capybara::Cuprite
       [x, y, modifiers]
     end
 
-    def calculate_quads(node, offset_x = nil, offset_y = nil)
-      quads = get_content_quads(node)
+    def calculate_quads(id, offset_x = nil, offset_y = nil)
+      quads = get_content_quads(id)
       offset_x, offset_y = offset_x.to_i, offset_y.to_i
 
       if offset_x > 0 || offset_y > 0
@@ -107,8 +113,12 @@ module Capybara::Cuprite
       end
     end
 
-    def get_content_quads(node)
-      result = page.command("DOM.getContentQuads", nodeId: node["nodeId"])
+    def get_content_quads(id)
+      object_id = evaluate("_cuprite.getNode(#{id}).native",
+                           functionDeclaration: "function() { return %s; }",
+                           returnByValue: false)["objectId"]
+      node_id = page.command("DOM.requestNode", objectId: object_id)["nodeId"]
+      result = page.command("DOM.getContentQuads", nodeId: node_id)
       raise "Node is either not visible or not an HTMLElement" if result["quads"].size == 0
 
       # FIXME: Case when a few quads returned

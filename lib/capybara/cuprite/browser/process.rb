@@ -54,6 +54,8 @@ module Capybara::Cuprite
         end
       end
 
+      attr_reader :host, :port, :ws_url
+
       def initialize(options)
         exe = options[:path] || BROWSER_PATH
         @path = Cliver.detect(exe)

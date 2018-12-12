@@ -2,11 +2,11 @@
 
 module Capybara::Cuprite
   class Node < Capybara::Driver::Node
-    attr_reader :target_id, :node
+    attr_reader :target_id, :id
 
-    def initialize(driver, target_id, node)
+    def initialize(driver, target_id, id)
       super(driver, self)
-      @target_id, @node = target_id, node
+      @target_id, @id = target_id, id
     end
 
     def browser
@@ -14,7 +14,7 @@ module Capybara::Cuprite
     end
 
     def command(name, *args)
-      browser.send(name, @target_id, @node, *args)
+      browser.send(name, @id, *args)
     rescue BrowserError => e
       case e.message
       when "Cuprite.ObsoleteNode"
@@ -33,8 +33,8 @@ module Capybara::Cuprite
     end
 
     def find(method, selector)
-      command(:find_within, method, selector).map do |node|
-        self.class.new(driver, @target_id, node)
+      command(:find_within, method, selector).map do |id|
+        self.class.new(driver, @target_id, id)
       end
     end
 
@@ -157,7 +157,7 @@ module Capybara::Cuprite
     end
 
     def drag_to(other)
-      command(:drag, other.node)
+      command(:drag, other.id)
     end
 
     def drag_by(x, y)
@@ -169,10 +169,8 @@ module Capybara::Cuprite
     end
 
     def ==(other)
-      # We compare backendNodeId because once nodeId is sent to frontend backend
-      # never returns same nodeId sending 0. In other words frontend is
-      # responsible for keeping track of node ids.
-      @target_id == other.target_id && @node["backendNodeId"] == other.node["backendNodeId"]
+      # function("_cuprite.equal", id, other)
+      @target_id == other.target_id && command(:equal, other.id)
     end
 
     def send_keys(*keys)
@@ -185,7 +183,7 @@ module Capybara::Cuprite
     end
 
     def inspect
-      %(#<#{self.class} @target_id=#{@target_id.inspect} @node=#{@node.inspect}>)
+      %(#<#{self.class} @target_id=#{@target_id.inspect} @id=#{@id.inspect}>)
     end
 
     # @api private
@@ -195,8 +193,7 @@ module Capybara::Cuprite
 
     # @api private
     def as_json(*)
-      # FIXME: Where this method is used and why attr is called id?
-      { ELEMENT: { target_id: @target_id, id: @node } }
+      { cupriteNodeId: @id }
     end
 
     private

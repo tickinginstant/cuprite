@@ -21,7 +21,7 @@ module Capybara::Cuprite
     delegate %i(command subscribe) => :@client
     delegate %i(window_handle window_handles switch_to_window open_new_window
                 close_window find_window_handle within_window page) => :@targets
-    delegate %i(evaluate evaluate_async execute) => :@evaluate
+    delegate %i(evaluate evaluate_async execute function) => :@evaluate
     delegate %i(click right_click double_click hover set click_coordinates
                 drag drag_by select trigger scroll_to send_keys) => :@input
 
@@ -36,7 +36,7 @@ module Capybara::Cuprite
     end
 
     def current_url
-      evaluate("location.href")
+      evaluate("location.href", returnByValue: true)
     end
 
     def frame_url
@@ -58,34 +58,32 @@ module Capybara::Cuprite
     end
 
     def title
-      evaluate("document.title")
+      evaluate("document.title", returnByValue: true)
     end
 
     def frame_title
       command "frame_title"
     end
 
-    def parents(target_id, id)
-      command "parents", target_id, id
+    def parents(id)
+      command "parents", id
     end
 
     def find(method, selector)
       find_all(method, selector)
     end
 
-    def find_within(_target_id, node, method, selector)
-      resolved = page.command("DOM.resolveNode", nodeId: node["nodeId"])
-      object_id = resolved.dig("object", "objectId")
-      find_all(method, selector, { "objectId" => object_id })
+    def find_within(id, method, selector)
+      find_all(method, selector, { "cupriteNodeId" => id })
     end
 
-    def all_text(target_id, node)
-      page.evaluate(node, "this.textContent")
+    def all_text(id)
+      function("_cuprite.getNode(#{id}).allText")
     end
 
-    def visible_text(target_id, node)
+    def visible_text(id)
       begin
-        page.evaluate(node, "_cuprite.visibleText(this)")
+        function("_cuprite.getNode(#{id}).visibleText")
       rescue BrowserError => e
         # FIXME ObsoleteNode first arg is node, so it should be in node class
         if e.message == "No node with given id found"
@@ -96,41 +94,40 @@ module Capybara::Cuprite
       end
     end
 
-    def delete_text(target_id, id)
-      command "delete_text", target_id, id
+    def delete_text(id)
+      command "delete_text", id
     end
 
-    def property(_target_id, node, name)
-      page.evaluate(node, %Q(this["#{name}"]))
+    def property(id, name)
+      function("_cuprite.getNode(#{id}).property", name)
     end
 
-    def attributes(target_id, node)
-      value = page.evaluate(node, "_cuprite.getAttributes(this)")
-      JSON.parse(value)
+    def attributes(id)
+      function("_cuprite.getNode(#{id}).getAttributes")
     end
 
-    def attribute(target_id, node, name)
-      page.evaluate(node, %Q(_cuprite.getAttribute(this, "#{name}")))
+    def attribute(id, name)
+      function("_cuprite.getNode(#{id}).getAttribute", name)
     end
 
-    def value(_target_id, node)
-      page.evaluate(node, "_cuprite.value(this)")
+    def value(id)
+      function("_cuprite.getNode(#{id}).value")
     end
 
-    def select_file(target_id, id, value)
-      command "select_file", target_id, id, value
+    def select_file(id, value)
+      command "select_file", id, value
     end
 
-    def tag_name(target_id, node)
-      node["nodeName"].downcase
+    def tag_name(id)
+      function("_cuprite.getNode(#{id}).tagName")
     end
 
-    def visible?(_target_id, node)
-      page.evaluate(node, "_cuprite.isVisible(this)")
+    def visible?(id)
+      function("_cuprite.getNode(#{id}).isVisible")
     end
 
-    def disabled?(_target_id, node)
-      page.evaluate(node, "_cuprite.isDisabled(this)")
+    def disabled?(id)
+      function("_cuprite.getNode(#{id}).isDisabled")
     end
 
     def within_frame(handle)
@@ -182,7 +179,7 @@ module Capybara::Cuprite
     end
 
     def path(target_id, node)
-      page.evaluate(node, "_cuprite.path(this)")
+      function("_cuprite.getNode(#{id}).path")
     end
 
     def network_traffic(type = nil)
@@ -331,7 +328,7 @@ module Capybara::Cuprite
       @client = Client.new(@process.ws_url, @logger)
       @targets = Targets.new(self, @logger)
       @evaluate = Evaluate.new(@targets)
-      @input = Input.new(@targets)
+      @input = Input.new(@targets, @evaluate)
     end
 
     def check_render_options!(options)
@@ -342,17 +339,9 @@ module Capybara::Cuprite
 
     def find_all(method, selector, within = nil)
       begin
-        elements = if within
-          evaluate("_cuprite.find(arguments[0], arguments[1], arguments[2])", method, selector, within)
-        else
-          evaluate("_cuprite.find(arguments[0], arguments[1])", method, selector)
-        end
-
-        elements.map do |element|
-          # nodeType: 3, nodeName: "#text" e.g.
-          target_id, node = element.values_at("target_id", "node")
-          next if node["nodeType"] != 1
-          within ? node : [target_id, node]
+        args = [method, selector, within].compact
+        function("_cuprite.find", *args).map do |n|
+          within ? n["cupriteNodeId"] : [page.target_id, n["cupriteNodeId"]]
         end.compact
       rescue JavaScriptError => e
         if e.class_name == "InvalidSelector"

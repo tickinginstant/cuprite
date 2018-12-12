@@ -73,7 +73,9 @@ module Capybara::Cuprite
     end
 
     def find(method, selector)
-      browser.find(method, selector).map { |target_id, node| Node.new(self, target_id, node) }
+      browser.find(method, selector).map do |target_id, id|
+        Node.new(self, target_id, id)
+      end
     end
 
     def find_xpath(selector)
@@ -386,7 +388,9 @@ module Capybara::Cuprite
       when Array
         arg.map { |e| unwrap_script_result(e) }
       when Hash
-        return Capybara::Cuprite::Node.new(self, arg["target_id"], arg["node"]) if arg["target_id"]
+        if arg["cupriteNodeId"]
+          return Node.new(self, browser.page.target_id, arg["cupriteNodeId"])
+        end
         arg.each { |k, v| arg[k] = unwrap_script_result(v) }
       else
         arg
