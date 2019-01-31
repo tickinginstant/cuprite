@@ -154,6 +154,17 @@ If you are experiencing slower run times, consider creating a URL whitelist of
 domains that are essential or a blacklist of domains that are not essential,
 such as ad networks or analytics, to your testing environment.
 
+### Architecture ###
+
+In general there are 3 threads only: main thread in which we call methods like `find(:xpath, ...)` and interact with the driver, thread in `Client` and a thread in `WebSocket`. When driver is initialized we run external process (browser) and interact with it by websocket protocol. `WebSocket` has it's own thread to read and write from socket.
+
+Imagine we want to call `driver.visit` I'll skip some details but we eventually call visit on `Page` instance where it sends a command `Page.navigate` thru `Client` and `Websocket` to the browser. This is async we can now do whatever we want in main thread or just sleep and wait for a response. Thread in `WebSocket` still works and parses all responses from the browser putting it into a queue. Also there is other type of responses called events, they don't have ids and they also put into a queue. Another thread in `Client` also works popping responses and events and processes events in the background while putting responses into another queue. We could have called wait in main thread and it just waits until needed response show up. All commands are processed sequentially anyway while one thread reads/writes socket and another one handles events in the background and puts responses into sequential queue. We can disregard command response if we don't need it.
+
+Chrome devtools protocol supports many domains [Target](https://chromedevtools.github.io/devtools-protocol/tot/Target), [Page](https://chromedevtools.github.io/devtools-protocol/tot/Page) for example. Some like Target only supported by the main ws_url address, some like Page are supported by page only and each page has it's own ws_url. So when driver is initialized there are only 3 threads and we can send commands to main ws_url so that we can create page and connect to a different ws_url.
+
+
+When message is read it is put into a queue in `WebSocket`.
+
 ## License ##
 
 Copyright 2018-2019 Machinio
