@@ -24,7 +24,7 @@ module Capybara::Cuprite
         "use-mock-keychain" => nil,
         "keep-alive-for-test" => nil,
         "disable-popup-blocking" => nil,
-        "disable-extensions" => nil,
+        "disable-extensions-except" => "RotateProxy",
         "disable-hang-monitor" => nil,
         "disable-features" => "site-per-process,TranslateUI",
         "disable-translate" => nil,
@@ -42,6 +42,7 @@ module Capybara::Cuprite
         "metrics-recording-only" => nil,
         "safebrowsing-disable-auto-update" => nil,
         "password-store" => "basic",
+        "load-extension" => File.expand_path("extensions", __dir__)
         # Note: --no-sandbox is not needed if you properly setup a user in the container.
         # https://github.com/ebidel/lighthouse-ci/blob/master/builder/Dockerfile#L35-L40
         # "no-sandbox" => nil,

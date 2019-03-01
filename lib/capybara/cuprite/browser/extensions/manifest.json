@@ -1,0 +1,16 @@
+{
+  "name": "RotateProxy",
+  "version": "1.0",
+  "description": "Rotate proxies as a boss",
+  "permissions": ["proxy", "activeTab"],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["contentscript.js"],
+    "match_about_blank": true
+  }],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "manifest_version": 2
+}

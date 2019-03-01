@@ -195,6 +195,7 @@ module Capybara::Cuprite
       @options[:browser_options].merge!("proxy-server" => "#{type}=#{ip}:#{port}")
       @options[:browser_options].merge!("proxy-bypass-list" => bypass) if bypass
       browser.proxy_authorize(user, password)
+      execute_script("window.postMessage({ type: 'rotateProxy', ip: '#{ip}', port: #{port} }, '*')")
     end
 
     def headers
