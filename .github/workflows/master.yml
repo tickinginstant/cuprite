@@ -3,7 +3,7 @@ on:
   pull_request:
 
 jobs:
-  tests:
+  master_tests:
     name: Master
     strategy:
       fail-fast: false
