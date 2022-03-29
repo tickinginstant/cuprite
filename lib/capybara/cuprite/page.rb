@@ -24,9 +24,11 @@ module Capybara
         # Skip inputs marked as read-only:
         return if node.property("readOnly")
 
-        # Scroll so that the field is in view, then focus on it and select all:
-        evaluate_on(node: node, expression: "_cuprite.scrollIntoViewport(this)")
-        evaluate_on(node: node, expression: "this.focus()")
+        # Click on the object to make sure that it has focus:
+        before_click(node, "click")
+        node.click(mode: :left)
+
+        # Select the contents of the field:
         evaluate_on(node: node, expression: "this.select()")
 
         # Special case when deleting the entire field:

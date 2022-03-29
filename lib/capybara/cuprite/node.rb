@@ -292,7 +292,7 @@ module Capybara
                  when "date"
                    "%Y-%m-%d"
                  else
-                   "%Y-%m-%dT%H-%M"
+                   "%Y-%m-%dT%H:%M"
                  end
 
         if date.respond_to?(:strftime)
