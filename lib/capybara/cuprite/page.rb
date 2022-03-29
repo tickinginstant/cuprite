@@ -24,16 +24,19 @@ module Capybara
         # Skip inputs marked as read-only:
         return if node.property("readOnly")
 
-        # Focus on the field:
-        unless evaluate_on(node: node, expression: %(_cuprite.containsSelection(this)))
-          before_click(node, "click")
-          node.click(mode: :left)
-        end
+        # # Focus on the field:
+        # unless evaluate_on(node: node, expression: %(_cuprite.containsSelection(this)))
+        #   before_click(node, "click")
+        #   node.click(mode: :left)
+        # end
 
-        before = node.value
+        # # Select the entire field so that it will be deleted when we type:
+        # select(node, [0, node.value.length])
 
-        # Clear the field:
-        evaluate_on(node: node, expression: %(_cuprite.setValue(this, "")))
+        evaluate_on(node: node, expression: "this.focus()")
+        evaluate_on(node: node, expression: "this.select()")
+
+        # evaluate_on(node: node, expression: %(_cuprite.setValue(this, "")))
 
         # Type characters into the field:
         value.each_char do |char|
@@ -44,13 +47,24 @@ module Capybara
           end
         end
 
-        # Fire the changed event:
-        if before != node.value
-          evaluate_on(node: node, expression: "_cuprite.changed(this)")
+        # Special case when deleting the entire field:
+        if value.length == 0
+          keyboard.type(:Backspace)
         end
 
-        # Fire a blur event at the end:
-        evaluate_on(node: node, expression: "_cuprite.trigger(this, 'blur')")
+        # Move focus elsewhere:
+        evaluate_on(node: node, expression: "this.blur()")
+
+        # Click away from the field to trigger changed/blur events:
+        # find("body").click
+
+        # # Fire the changed event:
+        # if before != node.value
+        #   evaluate_on(node: node, expression: "_cuprite.changed(this)")
+        # end
+
+        # # Fire a blur event at the end:
+        # evaluate_on(node: node, expression: "_cuprite.trigger(this, 'blur')")
       end
 
       def select(node, value)
