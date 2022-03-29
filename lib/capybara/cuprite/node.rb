@@ -101,8 +101,14 @@ module Capybara
           when "file"
             files = value.respond_to?(:to_ary) ? value.to_ary.map(&:to_s) : value.to_s
             command(:select_file, files)
-          when "color"
-            node.evaluate("this.setAttribute('value', '#{value}')")
+          when "color", "range"
+            node.evaluate("_cuprite.set(this, '#{value}')")
+          when "time"
+            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%H:%M")}')")
+          when "date"
+            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%m-%d")}')")
+          when "datetime-local"
+            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%M-%dT%H:%m")}')")
           else
             command(:set, value.to_s)
           end
@@ -279,6 +285,14 @@ module Capybara
             arguments[0].scrollLeft = arguments[1];
           }
         JS
+      end
+
+      def ensure_date_format(date, format)
+        if date.respond_to?(:strftime)
+          date.strftime(format)
+        else
+          Time.parse(date).strftime(format)
+        end
       end
     end
   end

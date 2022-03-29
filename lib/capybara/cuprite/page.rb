@@ -21,8 +21,36 @@ module Capybara
       end
 
       def set(node, value)
-        object_id = command("DOM.resolveNode", nodeId: node.node_id).dig("object", "objectId")
-        evaluate("_cuprite.set(arguments[0], arguments[1])", { "objectId" => object_id }, value)
+        # Skip inputs marked as read-only:
+        return if node.property("readOnly")
+
+        # Focus on the field:
+        unless evaluate_on(node: node, expression: %(_cuprite.containsSelection(this)))
+          before_click(node, "click")
+          node.click(mode: :left)
+        end
+
+        before = node.value
+
+        # Clear the field:
+        evaluate_on(node: node, expression: %(_cuprite.setValue(this, "")))
+
+        # Type characters into the field:
+        value.each_char do |char|
+          if char == "\r" || char == "\n"
+            keyboard.type(:Enter)
+          else
+            keyboard.type(char)
+          end
+        end
+
+        # Fire the changed event:
+        if before != node.value
+          evaluate_on(node: node, expression: "_cuprite.changed(this)")
+        end
+
+        # Fire a blur event at the end:
+        evaluate_on(node: node, expression: "_cuprite.trigger(this, 'blur')")
       end
 
       def select(node, value)
