@@ -24,47 +24,25 @@ module Capybara
         # Skip inputs marked as read-only:
         return if node.property("readOnly")
 
-        # # Focus on the field:
-        # unless evaluate_on(node: node, expression: %(_cuprite.containsSelection(this)))
-        #   before_click(node, "click")
-        #   node.click(mode: :left)
-        # end
-
-        # # Select the entire field so that it will be deleted when we type:
-        # select(node, [0, node.value.length])
-
+        # Scroll so that the field is in view, then focus on it and select all:
+        evaluate_on(node: node, expression: "_cuprite.scrollIntoViewport(this)")
         evaluate_on(node: node, expression: "this.focus()")
         evaluate_on(node: node, expression: "this.select()")
 
-        # evaluate_on(node: node, expression: %(_cuprite.setValue(this, "")))
+        # Special case when deleting the entire field:
+        keyboard.type(:Backspace) if value.empty? && !node.value.empty?
 
         # Type characters into the field:
         value.each_char do |char|
-          if char == "\r" || char == "\n"
+          if "\r\n".include?(char)
             keyboard.type(:Enter)
           else
             keyboard.type(char)
           end
         end
 
-        # Special case when deleting the entire field:
-        if value.length == 0
-          keyboard.type(:Backspace)
-        end
-
-        # Move focus elsewhere:
+        # Move focus elsewhere to trigger the change event:
         evaluate_on(node: node, expression: "this.blur()")
-
-        # Click away from the field to trigger changed/blur events:
-        # find("body").click
-
-        # # Fire the changed event:
-        # if before != node.value
-        #   evaluate_on(node: node, expression: "_cuprite.changed(this)")
-        # end
-
-        # # Fire a blur event at the end:
-        # evaluate_on(node: node, expression: "_cuprite.trigger(this, 'blur')")
       end
 
       def select(node, value)

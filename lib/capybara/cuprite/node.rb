@@ -103,12 +103,9 @@ module Capybara
             command(:select_file, files)
           when "color", "range"
             node.evaluate("_cuprite.set(this, '#{value}')")
-          when "time"
-            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%H:%M")}')")
-          when "date"
-            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%m-%d")}')")
-          when "datetime-local"
-            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%m-%dT%H:%M")}')")
+          when "time", "date", "datetime-local"
+            value = ensure_date_format(value, self[:type])
+            node.evaluate("_cuprite.set(this, '#{value}')")
           else
             command(:set, value.to_s)
           end
@@ -287,7 +284,17 @@ module Capybara
         JS
       end
 
-      def ensure_date_format(date, format)
+      # Make sure that the date is in a format appropriate for the input type:
+      def ensure_date_format(date, type)
+        format = case type
+                 when "time"
+                   "%H:%M"
+                 when "date"
+                   "%Y-%m-%d"
+                 else
+                   "%Y-%m-%dT%H-%M"
+                 end
+
         if date.respond_to?(:strftime)
           date.strftime(format)
         else
