@@ -108,7 +108,7 @@ module Capybara
           when "date"
             node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%m-%d")}')")
           when "datetime-local"
-            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%M-%dT%H:%m")}')")
+            node.evaluate("_cuprite.set(this, '#{ensure_date_format(value, "%Y-%m-%dT%H:%M")}')")
           else
             command(:set, value.to_s)
           end
