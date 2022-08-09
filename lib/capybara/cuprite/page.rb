@@ -21,6 +21,11 @@ module Capybara
       end
 
       def set(node, value)
+        object_id = command("DOM.resolveNode", nodeId: node.node_id).dig("object", "objectId")
+        evaluate("_cuprite.set(arguments[0], arguments[1])", { "objectId" => object_id }, value)
+      end
+
+      def fill_in_text(node, value)
         # Skip inputs marked as read-only:
         return if node.property("readOnly")
 

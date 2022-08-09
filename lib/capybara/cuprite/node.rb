@@ -102,15 +102,14 @@ module Capybara
             files = value.respond_to?(:to_ary) ? value.to_ary.map(&:to_s) : value.to_s
             command(:select_file, files)
           when "color", "range"
-            node.evaluate("_cuprite.set(this, '#{value}')")
+            command(:set, value)
           when "time", "date", "datetime-local"
-            value = ensure_date_format(value, self[:type])
-            node.evaluate("_cuprite.set(this, '#{value}')")
+            command(:set, ensure_date_format(value, self[:type]))
           else
-            command(:set, value.to_s)
+            command(:fill_in_text, value.to_s)
           end
         elsif tag_name == "textarea"
-          command(:set, value.to_s)
+          command(:fill_in_text, value.to_s)
         elsif self[:isContentEditable]
           command(:delete_text)
           send_keys(value.to_s)
